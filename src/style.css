@@ -141,15 +141,17 @@ body {
   background: linear-gradient(to bottom, var(--muted), transparent);
 }
 
-/* Pinned above .hero-header (below), which now owns the top-of-hero real
-   estate — kept small/high so the rare case of it actually showing (iOS,
-   permission not yet granted) still clears the header underneath it. */
+/* Sits below the corner readouts AND .hero-header's genre label — both now
+   own the top-of-hero real estate, so the rare case of this actually
+   showing (iOS, permission not yet granted) needs to clear both rather
+   than sit above them. Narrower than a full-width span too, so it doesn't
+   reach sideways into the corner readout text on narrow viewports. */
 .tilt-enable-btn {
   position: absolute;
-  top: 16px;
+  top: clamp(130px, 20vh, 190px);
   left: 50%;
   transform: translateX(-50%);
-  max-width: calc(100% - 40px);
+  max-width: min(85vw, 420px);
   font-family: var(--mono);
   font-size: 12px;
   letter-spacing: 0.04em;
@@ -213,6 +215,73 @@ body {
 @media (max-width: 640px) {
   .hero-header {
     top: clamp(72px, 12vh, 120px);
+  }
+}
+
+/* ---------- terminal readouts (flavor text, verbatim from the game's own
+   TerminalReadouts array in DesktopShell.cs — same machine, not a prop
+   invented for the site) ---------------------------------------------- */
+
+.terminal-readouts {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.readout {
+  position: absolute;
+  margin: 0;
+  font-family: var(--mono);
+  font-size: 12px;
+  letter-spacing: 0.05em;
+  line-height: 1.7;
+  color: var(--muted);
+  /* Matches the game's own TerminalReadoutMaxOpacity — secondary/ambient
+     dressing, never competing with the logo for attention. */
+  opacity: 0.5;
+}
+
+.readout-top-left {
+  left: 28px;
+  top: 28px;
+  text-align: left;
+}
+
+.readout-top-right {
+  right: 28px;
+  top: 28px;
+  text-align: right;
+}
+
+.readout-mid-left {
+  left: 28px;
+  top: 50%;
+  transform: translateY(-50%);
+  text-align: left;
+}
+
+.readout-mid-right {
+  right: 28px;
+  top: 50%;
+  transform: translateY(-50%);
+  text-align: right;
+}
+
+@media (max-width: 640px) {
+  .readout {
+    font-size: 10px;
+  }
+  .readout-top-left,
+  .readout-top-right {
+    top: 16px;
+  }
+  /* The mid-anchored pair sits right where the logo itself spans on a
+     narrow portrait screen (it fills most of the viewport width there) —
+     hidden rather than fighting the glyphs for the same real estate. */
+  .readout-mid-left,
+  .readout-mid-right {
+    display: none;
   }
 }
 
