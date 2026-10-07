@@ -102,6 +102,15 @@ body {
   .corner-link-right {
     right: 14px;
   }
+  /* The 10vh gap that works on desktop leaves no room on a short phone
+     viewport before colliding with the scroll hint below it — pull both
+     closer to the edges instead, stacked rather than overlapping. */
+  .corner-link {
+    bottom: 18px;
+  }
+  .scroll-hint {
+    bottom: 92px;
+  }
 }
 
 .scroll-hint {

@@ -172,14 +172,23 @@ export function createAsciiLogo(container) {
     visibleHeight = 2 * Math.tan(fovRad / 2) * camera.position.z;
     visibleWidth = visibleHeight * camera.aspect;
 
-    // Deliberately small — this sits as a single centered mark on an
-    // otherwise-empty page, not a banner stretching edge to edge.
-    const paddingFactor = 0.42;
+    // The word is ~12x wider than it is tall, so on a portrait phone the
+    // WIDTH constraint always wins regardless of padding — there's no
+    // amount of tuning that changes which dimension binds. What portrait
+    // screens DO have is far more spare height than a desktop window, so
+    // they can afford a much larger padding factor and still fit with
+    // room to spare, instead of leaving most of the screen empty.
+    const isPortrait = camera.aspect < 1;
+    const paddingFactor = isPortrait ? 0.86 : 0.42;
     const scale = Math.min(
       (visibleWidth * paddingFactor) / gridWidth,
       (visibleHeight * paddingFactor) / gridHeight
     );
-    group.scale.setScalar(THREE.MathUtils.clamp(scale, 0.18, 1.1));
+    // Floor is just a sanity backstop against a degenerate (near-zero)
+    // viewport — NOT a "never go below this" target. The old 0.18 floor
+    // was bigger than what narrow phones actually fit, forcing the grid
+    // wider than the screen and clipping it at the edges.
+    group.scale.setScalar(THREE.MathUtils.clamp(scale, 0.04, 1.1));
   }
   window.addEventListener("resize", resize);
   resize();
@@ -208,6 +217,49 @@ export function createAsciiLogo(container) {
     desiredLookAt.set(nx * LOOK_RANGE_X, -ny * LOOK_RANGE_Y, LOOK_DEPTH);
   }
   window.addEventListener("pointermove", onPointerMove);
+
+  // On touch devices there's no mouse to drive the look-at, so the phone's
+  // own tilt takes over instead — same pointer/desiredLookAt plumbing, just
+  // fed from the gyro. Calibrated against whatever orientation the phone is
+  // in the moment it starts (not an absolute "flat on a table" zero), so it
+  // reads as "tilt away from however you're already holding it" rather than
+  // snapping to some arbitrary reference pose.
+  const TILT_SENSITIVITY_DEG = 24;
+  const orientationRef = { beta: null, gamma: null };
+
+  function onDeviceOrientation(e) {
+    if (e.beta === null || e.gamma === null) return;
+    if (orientationRef.beta === null) {
+      orientationRef.beta = e.beta;
+      orientationRef.gamma = e.gamma;
+    }
+    const nx = THREE.MathUtils.clamp((e.gamma - orientationRef.gamma) / TILT_SENSITIVITY_DEG, -1, 1);
+    const ny = THREE.MathUtils.clamp((e.beta - orientationRef.beta) / TILT_SENSITIVITY_DEG, -1, 1);
+    pointer.x = nx;
+    pointer.y = ny;
+    pointer.lastMoveAt = performance.now();
+    desiredLookAt.set(nx * LOOK_RANGE_X, -ny * LOOK_RANGE_Y, LOOK_DEPTH);
+  }
+
+  function enableDeviceOrientation() {
+    window.addEventListener("deviceorientation", onDeviceOrientation);
+  }
+
+  function requestDeviceOrientation() {
+    if (typeof DeviceOrientationEvent !== "undefined" && typeof DeviceOrientationEvent.requestPermission === "function") {
+      // iOS 13+ gates motion access behind a user gesture.
+      DeviceOrientationEvent.requestPermission().then((state) => {
+        if (state === "granted") enableDeviceOrientation();
+      }).catch(() => {});
+    } else if (typeof DeviceOrientationEvent !== "undefined") {
+      enableDeviceOrientation();
+    }
+  }
+
+  const isTouchDevice = window.matchMedia && window.matchMedia("(pointer: coarse)").matches;
+  if (isTouchDevice) {
+    window.addEventListener("pointerdown", requestDeviceOrientation, { once: true });
+  }
 
   function cellRowCol(idx) {
     return { r: Math.floor(idx / colCount), c: idx % colCount };
@@ -453,6 +505,8 @@ export function createAsciiLogo(container) {
     renderer.setAnimationLoop(null);
     window.removeEventListener("resize", resize);
     window.removeEventListener("pointermove", onPointerMove);
+    window.removeEventListener("deviceorientation", onDeviceOrientation);
+    window.removeEventListener("pointerdown", requestDeviceOrientation);
     geometry.dispose();
     material.dispose();
     atlasTexture.dispose();
