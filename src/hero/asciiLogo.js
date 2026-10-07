@@ -33,6 +33,21 @@ const MOVE_GLITCH_FLASH_MS = 130;
 
 const CURSOR_FOLLOW_TIMEOUT_MS = 2000;
 
+// Hover-triggered screen tear — same shape as the game's own PlayScreenTear
+// (DesktopShell.cs): a handful of hard-cut jitter steps with climbing
+// amplitude, no easing (a tear is a snap, not a slide), then a snap back.
+// The game slices a captured screenshot into horizontal bands and jitters
+// each sideways; here the grid IS already row-based, so each row of glyphs
+// gets its own random horizontal offset per step instead.
+const TEAR_STEPS = [
+  { atMs: 0, amplitude: 0.55 },
+  { atMs: 70, amplitude: 0.85 },
+  { atMs: 150, amplitude: 1.3 },
+  { atMs: 230, amplitude: 0 },
+];
+const TEAR_GLITCH_BURST_COUNT = 18;
+const TEAR_GLITCH_FLASH_MS = 160;
+
 const BASE_COLOR = new THREE.Color(0xeae7de); // --ink
 const ACCENT_COLOR = new THREE.Color(0xb47fe3); // --ai-accent
 
@@ -88,6 +103,9 @@ export function createAsciiLogo(container) {
   const isHash = new Array(cellCount);
   const resolved = new Array(cellCount).fill(false);
   const flashStartAt = new Array(cellCount).fill(-1);
+  const baseX = new Float32Array(cellCount);
+  const baseY = new Float32Array(cellCount);
+  const rowOffsetX = new Float32Array(rowCount);
 
   const gridWidth = (colCount - 1) * spacingX;
   const gridHeight = (rowCount - 1) * spacingY;
@@ -104,6 +122,8 @@ export function createAsciiLogo(container) {
 
       const x = c * spacingX - gridWidth / 2;
       const y = gridHeight / 2 - r * spacingY;
+      baseX[idx] = x;
+      baseY[idx] = y;
       dummy.position.set(x, y, 0);
       dummy.updateMatrix();
       mesh.setMatrixAt(idx, dummy.matrix);
@@ -119,6 +139,21 @@ export function createAsciiLogo(container) {
   }
   mesh.instanceMatrix.needsUpdate = true;
   atlasIndexAttr.needsUpdate = true;
+
+  // Reapplies baseX/baseY + the per-row tear offset to every instance —
+  // called whenever rowOffsetX changes (tear steps), not every frame.
+  function applyRowOffsets() {
+    for (let r = 0; r < rowCount; r++) {
+      const offset = rowOffsetX[r];
+      for (let c = 0; c < colCount; c++) {
+        const idx = r * colCount + c;
+        dummy.position.set(baseX[idx] + offset, baseY[idx], 0);
+        dummy.updateMatrix();
+        mesh.setMatrixAt(idx, dummy.matrix);
+      }
+    }
+    mesh.instanceMatrix.needsUpdate = true;
+  }
 
   // --- responsive framing ---------------------------------------------------
   // Tracked so pointer->grid mapping (below) can reason in the same world
@@ -271,6 +306,23 @@ export function createAsciiLogo(container) {
 
   const ambientGlitches = []; // { idx, revertAt }
 
+  let tearStartAt = -1;
+  let tearStepIndex = 0;
+
+  function triggerTear() {
+    if (!allResolved) return;
+    tearStartAt = performance.now();
+    tearStepIndex = 0;
+
+    for (let i = 0; i < TEAR_GLITCH_BURST_COUNT; i++) {
+      let idx = Math.floor(Math.random() * cellCount);
+      for (let guard = 0; guard < cellCount && !isHash[idx]; guard++) idx = (idx + 1) % cellCount;
+      ambientGlitches.push({ idx, revertAt: tearStartAt + TEAR_GLITCH_FLASH_MS + Math.random() * 120 });
+      atlasIndexAttr.array[idx] = randomScrambleIndex();
+    }
+    atlasIndexAttr.needsUpdate = true;
+  }
+
   function tick(nowMs) {
     if (startTime < 0) startTime = nowMs;
     const elapsed = nowMs - startTime;
@@ -373,6 +425,20 @@ export function createAsciiLogo(container) {
       }
     }
 
+    // Tear steps — hard cuts, not eased, same cadence as PlayScreenTear.
+    if (tearStartAt >= 0) {
+      const tearElapsed = nowMs - tearStartAt;
+      while (tearStepIndex < TEAR_STEPS.length && tearElapsed >= TEAR_STEPS[tearStepIndex].atMs) {
+        const amplitude = TEAR_STEPS[tearStepIndex].amplitude;
+        for (let r = 0; r < rowCount; r++) {
+          rowOffsetX[r] = amplitude === 0 ? 0 : (Math.random() * 2 - 1) * amplitude;
+        }
+        applyRowOffsets();
+        tearStepIndex++;
+      }
+      if (tearStepIndex >= TEAR_STEPS.length) tearStartAt = -1;
+    }
+
     if (glowDirty) glowAttr.needsUpdate = true;
 
     smoothedLookAt.lerp(desiredLookAt, 0.08);
@@ -394,5 +460,5 @@ export function createAsciiLogo(container) {
     renderer.domElement.remove();
   }
 
-  return { dispose };
+  return { dispose, triggerTear };
 }
