@@ -141,9 +141,12 @@ body {
   background: linear-gradient(to bottom, var(--muted), transparent);
 }
 
+/* Pinned above .hero-header (below), which now owns the top-of-hero real
+   estate — kept small/high so the rare case of it actually showing (iOS,
+   permission not yet granted) still clears the header underneath it. */
 .tilt-enable-btn {
   position: absolute;
-  top: 20px;
+  top: 16px;
   left: 50%;
   transform: translateX(-50%);
   max-width: calc(100% - 40px);
@@ -187,12 +190,14 @@ body {
   }
 }
 
-/* ---------- trailer section ---------- */
+/* ---------- hero header (genre label only, above the logo) -------------- */
 
-.trailer-section {
-  max-width: 960px;
-  margin: 0 auto;
-  padding: 100px 32px 140px;
+.hero-header {
+  position: absolute;
+  top: clamp(90px, 14vh, 160px);
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(92vw, 640px);
   text-align: center;
 }
 
@@ -202,12 +207,27 @@ body {
   letter-spacing: 0.14em;
   text-transform: uppercase;
   color: var(--muted);
-  margin: 0 0 14px;
+  margin: 0;
+}
+
+@media (max-width: 640px) {
+  .hero-header {
+    top: clamp(72px, 12vh, 120px);
+  }
+}
+
+/* ---------- trailer section (title / wishlist CTA / video) -------------- */
+
+.trailer-section {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 100px 32px 140px;
+  text-align: center;
 }
 
 .wishlist-title {
   font-family: var(--mono);
-  font-size: clamp(22px, 3.4vw, 34px);
+  font-size: clamp(20px, 3.2vw, 32px);
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--ai-accent);

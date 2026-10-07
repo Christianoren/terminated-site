@@ -224,7 +224,11 @@ export function createAsciiLogo(container) {
   // in the moment it starts (not an absolute "flat on a table" zero), so it
   // reads as "tilt away from however you're already holding it" rather than
   // snapping to some arbitrary reference pose.
-  const TILT_SENSITIVITY_DEG = 24;
+  // Degrees of tilt needed to reach the full look-at range — lower reads as
+  // MORE sensitive (less physical tilt needed for the same swing). Dropped
+  // from 24 after user feedback that it needed way more phone tilt than
+  // felt natural to see any real movement.
+  const TILT_SENSITIVITY_DEG = 9;
   const orientationRef = { beta: null, gamma: null };
 
   function onDeviceOrientation(e) {
