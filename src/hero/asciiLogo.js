@@ -257,8 +257,29 @@ export function createAsciiLogo(container) {
   }
 
   const isTouchDevice = window.matchMedia && window.matchMedia("(pointer: coarse)").matches;
-  if (isTouchDevice) {
-    window.addEventListener("pointerdown", requestDeviceOrientation, { once: true });
+  const needsOrientationPermission =
+    typeof DeviceOrientationEvent !== "undefined" && typeof DeviceOrientationEvent.requestPermission === "function";
+
+  let permissionRequested = false;
+  function requestOrientationOnce() {
+    if (permissionRequested) return;
+    permissionRequested = true;
+    requestDeviceOrientation();
+  }
+
+  if (isTouchDevice && needsOrientationPermission) {
+    // iOS requires the permission call to happen inside a real user
+    // gesture — waiting on a tap anywhere on the page (e.g. a CTA link
+    // that immediately navigates away) often means it never gets a
+    // gesture to use. Scoping it to the canvas itself, on both pointer
+    // and touch events for older WebView quirks, catches the much more
+    // likely case of someone poking at the 3D logo out of curiosity.
+    container.addEventListener("pointerdown", requestOrientationOnce, { once: true });
+    container.addEventListener("touchstart", requestOrientationOnce, { once: true });
+  } else if (isTouchDevice) {
+    // No permission gate (Android and others) — no need to wait for a
+    // gesture, so tilt works the instant the page loads.
+    enableDeviceOrientation();
   }
 
   function cellRowCol(idx) {
@@ -506,7 +527,8 @@ export function createAsciiLogo(container) {
     window.removeEventListener("resize", resize);
     window.removeEventListener("pointermove", onPointerMove);
     window.removeEventListener("deviceorientation", onDeviceOrientation);
-    window.removeEventListener("pointerdown", requestDeviceOrientation);
+    container.removeEventListener("pointerdown", requestOrientationOnce);
+    container.removeEventListener("touchstart", requestOrientationOnce);
     geometry.dispose();
     material.dispose();
     atlasTexture.dispose();
