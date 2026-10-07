@@ -177,9 +177,13 @@ body {
   font-size: 14px;
   letter-spacing: 0.04em;
   text-decoration: none;
-  color: var(--bg);
-  background: var(--ai-accent);
-  border: 1px solid var(--ai-accent);
+  /* White text + the Steam icon left unfiltered (white, per Steam's own
+     brand guideline) — needs a dark-enough fill behind it for contrast,
+     so this is a deeper violet rather than the light --ai-accent used for
+     borders/text elsewhere. */
+  color: var(--ink);
+  background: #5c3d8a;
+  border: 1px solid #7a56b3;
   border-radius: 4px;
   padding: 13px 22px;
   margin: 0 0 48px;
@@ -187,12 +191,8 @@ body {
 }
 
 .btn-wishlist:hover {
-  background: #c497ea;
+  background: #6d49a0;
   transform: translateY(-1px);
-}
-
-.btn-wishlist .corner-link-icon {
-  filter: invert(1);
 }
 
 .video-frame {
