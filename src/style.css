@@ -141,6 +141,42 @@ body {
   background: linear-gradient(to bottom, var(--muted), transparent);
 }
 
+.tilt-enable-btn {
+  position: absolute;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  max-width: calc(100% - 40px);
+  font-family: var(--mono);
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  text-align: center;
+  color: var(--ink-soft);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 10px 16px;
+  cursor: pointer;
+}
+
+.tilt-enable-btn:hover {
+  border-color: var(--ai-accent);
+  color: var(--ink);
+}
+
+.tilt-enable-btn-denied {
+  color: #d9704d;
+  border-color: #d9704d;
+  cursor: default;
+  white-space: normal;
+  line-height: 1.5;
+}
+
+.tilt-enable-btn-denied:hover {
+  border-color: #d9704d;
+  color: #d9704d;
+}
+
 @keyframes hint-fade {
   0%,
   100% {

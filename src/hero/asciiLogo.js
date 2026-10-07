@@ -245,40 +245,47 @@ export function createAsciiLogo(container) {
     window.addEventListener("deviceorientation", onDeviceOrientation);
   }
 
-  function requestDeviceOrientation() {
-    if (typeof DeviceOrientationEvent !== "undefined" && typeof DeviceOrientationEvent.requestPermission === "function") {
-      // iOS 13+ gates motion access behind a user gesture.
-      DeviceOrientationEvent.requestPermission().then((state) => {
-        if (state === "granted") enableDeviceOrientation();
-      }).catch(() => {});
-    } else if (typeof DeviceOrientationEvent !== "undefined") {
-      enableDeviceOrientation();
-    }
-  }
-
   const isTouchDevice = window.matchMedia && window.matchMedia("(pointer: coarse)").matches;
   const needsOrientationPermission =
     typeof DeviceOrientationEvent !== "undefined" && typeof DeviceOrientationEvent.requestPermission === "function";
 
-  let permissionRequested = false;
-  function requestOrientationOnce() {
-    if (permissionRequested) return;
-    permissionRequested = true;
-    requestDeviceOrientation();
-  }
-
+  // An invisible auto-request (a tap anywhere counted as "the gesture")
+  // gave zero feedback when it failed — and on iOS it silently resolves to
+  // "denied" with no prompt at all if the user has Settings > Safari >
+  // Motion & Orientation Access turned off, which just reads as "tilt does
+  // nothing, no idea why." A real button means requestPermission() always
+  // runs from an unambiguous click (not fighting a CTA link for the same
+  // gesture) and lets us show the user what actually happened.
+  let tiltButton = null;
   if (isTouchDevice && needsOrientationPermission) {
-    // iOS requires the permission call to happen inside a real user
-    // gesture — waiting on a tap anywhere on the page (e.g. a CTA link
-    // that immediately navigates away) often means it never gets a
-    // gesture to use. Scoping it to the canvas itself, on both pointer
-    // and touch events for older WebView quirks, catches the much more
-    // likely case of someone poking at the 3D logo out of curiosity.
-    container.addEventListener("pointerdown", requestOrientationOnce, { once: true });
-    container.addEventListener("touchstart", requestOrientationOnce, { once: true });
+    tiltButton = document.createElement("button");
+    tiltButton.type = "button";
+    tiltButton.className = "tilt-enable-btn";
+    tiltButton.textContent = "Enable tilt";
+    tiltButton.addEventListener("click", () => {
+      DeviceOrientationEvent.requestPermission()
+        .then((state) => {
+          if (state === "granted") {
+            enableDeviceOrientation();
+            tiltButton.remove();
+          } else {
+            // Most likely cause: Settings > Safari > Motion & Orientation
+            // Access is off device-wide — requestPermission() resolves to
+            // "denied" with no system prompt at all in that case, so this
+            // is often the only feedback the user ever gets.
+            tiltButton.textContent = "Tilt blocked — check Settings > Safari > Motion & Orientation Access";
+            tiltButton.classList.add("tilt-enable-btn-denied");
+          }
+        })
+        .catch(() => {
+          tiltButton.textContent = "Couldn't enable tilt";
+          tiltButton.classList.add("tilt-enable-btn-denied");
+        });
+    });
+    container.appendChild(tiltButton);
   } else if (isTouchDevice) {
-    // No permission gate (Android and others) — no need to wait for a
-    // gesture, so tilt works the instant the page loads.
+    // No permission gate (Android and others) — no button needed, tilt
+    // works the instant the page loads.
     enableDeviceOrientation();
   }
 
@@ -527,8 +534,7 @@ export function createAsciiLogo(container) {
     window.removeEventListener("resize", resize);
     window.removeEventListener("pointermove", onPointerMove);
     window.removeEventListener("deviceorientation", onDeviceOrientation);
-    container.removeEventListener("pointerdown", requestOrientationOnce);
-    container.removeEventListener("touchstart", requestOrientationOnce);
+    tiltButton?.remove();
     geometry.dispose();
     material.dispose();
     atlasTexture.dispose();
